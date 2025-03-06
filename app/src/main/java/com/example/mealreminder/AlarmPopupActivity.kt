@@ -1,45 +1,41 @@
 package com.example.mealreminder
 
-import android.app.Activity
-import android.app.AlertDialog
 import android.media.MediaPlayer
 import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import com.example.mealreminder.databinding.DialogAlarmPopupNewBinding
 
-class AlarmPopupActivity : Activity() {
+class AlarmPopupActivity : AppCompatActivity() {
 
+    private lateinit var binding: DialogAlarmPopupNewBinding
     private var mediaPlayer: MediaPlayer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Initialize and start playing the alarm sound
+        // ✅ Correct way to use ViewBinding
+        binding = DialogAlarmPopupNewBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // Play alarm sound
         mediaPlayer = MediaPlayer.create(this, android.provider.Settings.System.DEFAULT_ALARM_ALERT_URI).apply {
             isLooping = true
             start()
         }
 
-        // Show the alert dialog
-        runOnUiThread {
-            val alertDialog = AlertDialog.Builder(this)
-                .setTitle("Meal Reminder 🍽️")
-                .setMessage("It's time for your meal!")
-                .setPositiveButton("OK") { _, _ ->
-                    stopAlarm() // Stop alarm before closing the activity
-                    finish()
-                }
-                .setCancelable(false)
-                .create()
-
-            alertDialog.show()
+        // Handle OK button click
+        binding.okButton.setOnClickListener {
+            stopAlarm()
+            finish()
         }
     }
 
     private fun stopAlarm() {
-        mediaPlayer?.let { player ->
-            if (player.isPlaying) {
-                player.stop()
-                player.reset()  // Reset before releasing
-                player.release() // Free resources
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.stop()
+                it.reset()
+                it.release()
             }
         }
         mediaPlayer = null
@@ -47,6 +43,6 @@ class AlarmPopupActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopAlarm() // Ensure alarm is stopped when activity is destroyed
+        stopAlarm()
     }
 }

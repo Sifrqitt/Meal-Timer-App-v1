@@ -13,7 +13,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MealTimerApp"
+        android:theme="@style/Theme.MealReminder"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
@@ -32,10 +32,11 @@
 
         <activity
             android:name=".AlarmPopupActivity"
-            android:theme="@android:style/Theme.Dialog"
+            android:theme="@style/Theme.MealReminder"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait"/>
+            android:screenOrientation="portrait"
+            android:exported="true" />
 
     </application>
 

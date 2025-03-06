@@ -1,16 +1,21 @@
 package com.example.mealreminder
 
+import android.Manifest
 import android.app.*
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import android.widget.RemoteViews
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -27,13 +32,15 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val CHANNEL_ID = "MealReminderChannel"
+        const val NOTIFICATION_PERMISSION_REQUEST_CODE = 101
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        requestExactAlarmPermission() // Ask for permission at startup
+        requestExactAlarmPermission() // Ask for exact alarm permission (Android 12+)
+        requestNotificationPermission() // Ask for notification permission (Android 13+)
 
         mealTimePickerButton = findViewById(R.id.mealTimePickerButton)
         mealTimeDisplay = findViewById(R.id.mealTimeDisplay)
@@ -55,6 +62,20 @@ class MainActivity : AppCompatActivity() {
             if (!alarmManager.canScheduleExactAlarms()) {
                 val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
                 startActivity(intent)
+            }
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_REQUEST_CODE
+                )
             }
         }
     }
@@ -126,6 +147,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
+        showCustomNotification() // Show sleek notification when meal is set
     }
 
     private fun resetSchedule() {
@@ -148,6 +170,42 @@ class MainActivity : AppCompatActivity() {
             }
             val notificationManager: NotificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun showCustomNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return // Don't show notification if permission is not granted
+        }
+
+        val notificationLayout = RemoteViews(packageName, R.layout.custom_notification)
+
+        // Intent for Snooze action
+        val snoozeIntent = Intent(this, SnoozeReceiver::class.java)
+        val snoozePendingIntent = PendingIntent.getBroadcast(this, 1001, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        notificationLayout.setOnClickPendingIntent(R.id.snooze_button, snoozePendingIntent)
+
+        // Intent for Dismiss action
+        val dismissIntent = Intent(this, DismissReceiver::class.java)
+        val dismissPendingIntent = PendingIntent.getBroadcast(this, 1002, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        notificationLayout.setOnClickPendingIntent(R.id.dismiss_button, dismissPendingIntent)
+
+        // Start alarm sound service
+        val alarmIntent = Intent(this, AlarmSoundService::class.java)
+        startService(alarmIntent)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_meal)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(notificationLayout)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setOngoing(true)  // Makes the notification persistent
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(dismissPendingIntent, true)  // Makes it high priority
+
+        with(NotificationManagerCompat.from(this)) {
+            notify(1, builder.build())
         }
     }
 }

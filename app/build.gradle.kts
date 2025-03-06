@@ -8,6 +8,11 @@ android {
     namespace = "com.example.mealreminder"
     compileSdk = 35
 
+    buildFeatures {
+        viewBinding = true
+        dataBinding = true
+    }
+
     defaultConfig {
         applicationId = "com.example.mealreminder"
         minSdk = 24

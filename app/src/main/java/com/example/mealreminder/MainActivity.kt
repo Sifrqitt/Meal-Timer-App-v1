@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var alarmManager: AlarmManager
     private var selectedHour: Int = -1
     private var selectedMinute: Int = -1
-    private val mealIntents = arrayOfNulls<PendingIntent>(3)
+    private val mealIntents = arrayOfNulls<PendingIntent>(4) // ✅ Correct size (supports 4 alarms)
 
     companion object {
         const val CHANNEL_ID = "MealReminderChannel"
@@ -108,6 +108,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        val now = Calendar.getInstance()
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.HOUR_OF_DAY, selectedHour)
         calendar.set(Calendar.MINUTE, selectedMinute)
@@ -115,12 +116,19 @@ class MainActivity : AppCompatActivity() {
 
         val scheduleText = StringBuilder("Meal Schedule:\n")
 
-        for (i in 0..2) {
-            calendar.add(Calendar.HOUR_OF_DAY, 3)
+        for (i in 0..3) { // Ensure exactly 4 meal times
             val amPm = if (calendar.get(Calendar.HOUR_OF_DAY) < 12) "AM" else "PM"
             val formattedHour = if (calendar.get(Calendar.HOUR_OF_DAY) % 12 == 0) 12 else calendar.get(Calendar.HOUR_OF_DAY) % 12
-            scheduleText.append("Meal ${i + 1}: $formattedHour:${String.format("%02d", calendar.get(Calendar.MINUTE))} $amPm\n")
-            setMealAlarm(i, calendar.timeInMillis)
+
+            if (calendar.after(now)) { // Only schedule if the time is in the future
+                scheduleText.append("Meal ${i + 1}: $formattedHour:${String.format("%02d", calendar.get(Calendar.MINUTE))} $amPm\n")
+                setMealAlarm(i, calendar.timeInMillis)
+            } else {
+                scheduleText.append("Meal ${i + 1}: Skipped (Past time)\n")
+            }
+
+            // Move to the next meal time (3 hours later)
+            calendar.add(Calendar.HOUR_OF_DAY, 3)
         }
 
         mealSchedule.text = scheduleText.toString()

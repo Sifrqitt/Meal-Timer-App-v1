@@ -2,10 +2,7 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
-      <SelectionState runConfigName="Meal Timer App">
-        <option name="selectionMode" value="DROPDOWN" />
-      </SelectionState>
-      <SelectionState runConfigName="app">
+      <SelectionState runConfigName="Meal Timer App v1">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

@@ -110,6 +110,7 @@ class MainActivity : AppCompatActivity() {
 
         val now = Calendar.getInstance()
         val calendar = Calendar.getInstance()
+        calendar.timeZone = TimeZone.getDefault() // ✅ Ensure consistent timezone
         calendar.set(Calendar.HOUR_OF_DAY, selectedHour)
         calendar.set(Calendar.MINUTE, selectedMinute)
         calendar.set(Calendar.SECOND, 0)
@@ -135,6 +136,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setMealAlarm(index: Int, timeInMillis: Long) {
+        val now = System.currentTimeMillis()
+
+        // ✅ Ensure alarm is only scheduled for a future time
+        if (timeInMillis <= now) {
+            return // Skip scheduling if time is in the past or current moment
+        }
+
         val intent = Intent(this, MealAlarmReceiver::class.java)
 
         val pendingIntent = PendingIntent.getBroadcast(
@@ -144,18 +152,20 @@ class MainActivity : AppCompatActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        mealIntents[index] = pendingIntent
+        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = getSystemService(AlarmManager::class.java)
             if (!alarmManager.canScheduleExactAlarms()) {
                 mealSchedule.text = "Permission required for exact alarms. Please enable in settings."
                 return
             }
         }
 
+        // 🚀 Debugging Log
+        println("Setting alarm at: " + Date(timeInMillis))
+
+        // ✅ Set the alarm for the correct future time
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeInMillis, pendingIntent)
-        showCustomNotification() // Show sleek notification when meal is set
     }
 
     private fun resetSchedule() {
@@ -180,7 +190,6 @@ class MainActivity : AppCompatActivity() {
             notificationManager.createNotificationChannel(channel)
         }
     }
-
     private fun showCustomNotification() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -191,17 +200,33 @@ class MainActivity : AppCompatActivity() {
 
         // Intent for Snooze action
         val snoozeIntent = Intent(this, SnoozeReceiver::class.java)
-        val snoozePendingIntent = PendingIntent.getBroadcast(this, 1001, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            this, 1001, snoozeIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         notificationLayout.setOnClickPendingIntent(R.id.snooze_button, snoozePendingIntent)
 
         // Intent for Dismiss action
         val dismissIntent = Intent(this, DismissReceiver::class.java)
-        val dismissPendingIntent = PendingIntent.getBroadcast(this, 1002, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            this, 1002, dismissIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         notificationLayout.setOnClickPendingIntent(R.id.dismiss_button, dismissPendingIntent)
 
-        // Start alarm sound service
+        // 🚀 Intent to open MainActivity when notification is clicked
+        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val openAppPendingIntent = PendingIntent.getActivity(
+            this, 0, openAppIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Start alarm sound service only if not already running
         val alarmIntent = Intent(this, AlarmSoundService::class.java)
-        startService(alarmIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(alarmIntent) // For Android 8.0+
+        } else {
+            startService(alarmIntent)
+        }
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_meal)
@@ -210,7 +235,8 @@ class MainActivity : AppCompatActivity() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)  // Makes the notification persistent
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setFullScreenIntent(dismissPendingIntent, true)  // Makes it high priority
+            .setContentIntent(openAppPendingIntent) // ✅ Opens the app when clicked
+            .setAutoCancel(true) // ✅ Dismisses the notification when clicked
 
         with(NotificationManagerCompat.from(this)) {
             notify(1, builder.build())

@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Meal Timer App</string>
+    <string name="selected_time">Selected Time: %d:%02d %s</string>
+    <string name="meal_schedule">Meal %d: %d:%02d %s\n</string>
+    <string name="meal_skipped">Meal %d: Skipped (Past time)\n</string>
+    <string name="select_meal_time">Please select a meal time first.</string>
+    <string name="schedule_reset">Schedule reset.</string>
+    <string name="no_time_selected">No time selected</string>
 </resources>

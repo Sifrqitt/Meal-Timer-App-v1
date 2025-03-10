@@ -2,7 +2,6 @@ package com.example.mealreminder
 
 import android.Manifest
 import android.app.*
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,6 +15,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import android.widget.RemoteViews
+import android.util.Log
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("MealTimerApp", "MainActivity launched from notification")
         setContentView(R.layout.activity_main)
 
         requestExactAlarmPermission() // Ask for exact alarm permission (Android 12+)
@@ -92,7 +93,7 @@ class MainActivity : AppCompatActivity() {
                 this.selectedMinute = selectedMinute
                 val amPm = if (selectedHour < 12) "AM" else "PM"
                 val formattedHour = if (selectedHour % 12 == 0) 12 else selectedHour % 12
-                mealTimeDisplay.text = "Selected Time: $formattedHour:${String.format("%02d", selectedMinute)} $amPm"
+                mealTimeDisplay.text = getString(R.string.selected_time, formattedHour, selectedMinute, amPm)
             },
             hour,
             minute,
@@ -104,7 +105,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setMealSchedule() {
         if (selectedHour == -1 || selectedMinute == -1) {
-            mealSchedule.text = "Please select a meal time first."
+            mealSchedule.text = getString(R.string.select_meal_time)
             return
         }
 
@@ -121,12 +122,21 @@ class MainActivity : AppCompatActivity() {
             val amPm = if (calendar.get(Calendar.HOUR_OF_DAY) < 12) "AM" else "PM"
             val formattedHour = if (calendar.get(Calendar.HOUR_OF_DAY) % 12 == 0) 12 else calendar.get(Calendar.HOUR_OF_DAY) % 12
 
-            if (calendar.after(now)) { // Only schedule if the time is in the future
-                scheduleText.append("Meal ${i + 1}: $formattedHour:${String.format("%02d", calendar.get(Calendar.MINUTE))} $amPm\n")
-                setMealAlarm(i, calendar.timeInMillis)
+            if (calendar.after(now)) { // Only schedule meals if they are in the future
+                if (i < 3) { // If it's Meal 1, 2, or 3, add a new line
+                    scheduleText.append(getString(R.string.meal_schedule, i + 1, formattedHour, calendar.get(Calendar.MINUTE), amPm) + "\n")
+                } else { // If it's Meal 4, don't add an extra new line
+                    scheduleText.append(getString(R.string.meal_schedule, i + 1, formattedHour, calendar.get(Calendar.MINUTE), amPm))
+                }
+                setMealAlarm(i, calendar.timeInMillis) // Set alarm only for future meals
             } else {
-                scheduleText.append("Meal ${i + 1}: Skipped (Past time)\n")
+                if (i < 3) {
+                    scheduleText.append(getString(R.string.meal_skipped, i + 1) + "\n") // Keep skipped meals on separate lines
+                } else {
+                    scheduleText.append(getString(R.string.meal_skipped, i + 1)) // No extra newline for last meal
+                }
             }
+
 
             // Move to the next meal time (3 hours later)
             calendar.add(Calendar.HOUR_OF_DAY, 3)
@@ -156,7 +166,7 @@ class MainActivity : AppCompatActivity() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!alarmManager.canScheduleExactAlarms()) {
-                mealSchedule.text = "Permission required for exact alarms. Please enable in settings."
+                mealSchedule.text = getString(R.string.select_meal_time)
                 return
             }
         }
@@ -172,8 +182,8 @@ class MainActivity : AppCompatActivity() {
         for (i in 0..2) {
             mealIntents[i]?.let { alarmManager.cancel(it) }
         }
-        mealSchedule.text = "Schedule reset."
-        mealTimeDisplay.text = "No time selected"
+        mealSchedule.text = getString(R.string.schedule_reset)
+        mealTimeDisplay.text = getString(R.string.no_time_selected)
         selectedHour = -1
         selectedMinute = -1
     }
